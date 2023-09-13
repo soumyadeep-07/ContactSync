@@ -14,6 +14,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.CircleCrop
 import com.bumptech.glide.request.RequestOptions
+import com.bumptech.glide.annotation.GlideModule
+import com.bumptech.glide.module.AppGlideModule
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -25,184 +27,161 @@ import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import online.soumya.contactsync.adapter.MailActivityRecViewAdapter
 import online.soumya.contactsync.databinding.ActivityMainBinding
 import online.soumya.contactsync.model.MainActivityModel
+import java.lang.Exception
+
 
 class MainActivity : AppCompatActivity() {
     private val binding by lazy {
         ActivityMainBinding.inflate(layoutInflater)
     }
-    private lateinit var Contacts:ArrayList<MainActivityModel>
+    private lateinit var contacts: ArrayList<MainActivityModel>
     private lateinit var adapter: MailActivityRecViewAdapter
     private lateinit var database: FirebaseDatabase
     private lateinit var contactsRef: DatabaseReference
     private lateinit var query: Query
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
-        Contacts = arrayListOf()
+        contacts = arrayListOf()
         binding.recViewContacts.layoutManager = LinearLayoutManager(this)
         binding.recViewContacts.setHasFixedSize(true)
-        adapter = MailActivityRecViewAdapter(Contacts)
+        adapter = MailActivityRecViewAdapter(contacts)
+        lifecycleScope.launch {
+            fetchContacts()
+        }
         binding.imgUserPic.setOnClickListener {
-            startActivity(Intent(this@MainActivity,UserProfileActivity::class.java))
+            startActivity(Intent(this@MainActivity, UserProfileActivity::class.java))
         }
         loadProfilePicture()
-        lifecycleScope.launch {
-            fatchContacts()
-            binding.progressBar2.visibility = View.VISIBLE
-        }
-        adapter = MailActivityRecViewAdapter(Contacts)
+        binding.progressBar2.visibility = View.VISIBLE
         binding.recViewContacts.adapter = adapter
 
         binding.fabIcon.setOnClickListener {
-            startActivity(Intent(this,CreateNewContactActivity::class.java))
+            startActivity(Intent(this, CreateNewContactActivity::class.java))
             finish()
         }
+
         database = FirebaseDatabase.getInstance()
         contactsRef = database.getReference("user_data").child(Firebase.auth.currentUser!!.uid)
 
         // Initialize the query with a default value
         query = contactsRef.orderByChild("name").equalTo("")
 
-        binding.edtSearch.addTextChangedListener(object : TextWatcher{
+        binding.edtSearch.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
-               // TODO("Not yet implemented")
+                // Not used
             }
 
             override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
                 // Update the query when the user types a letter
-            }
-
-            override fun afterTextChanged(p0: Editable?) {
-                //TODO("Not yet implemented")
                 val searchText = p0.toString()
 
                 // If the search text is empty, reset the query
                 if (searchText.isEmpty()) {
                     lifecycleScope.launch {
-                        fatchContacts()
+                        fetchContacts()
                     }
                 } else {
                     query = contactsRef.orderByChild("name")
                         .startAt(searchText)
                         .endAt(searchText + "\uf8ff")
                 }
+
                 query.addListenerForSingleValueEvent(object : ValueEventListener {
                     @SuppressLint("NotifyDataSetChanged")
                     override fun onDataChange(dataSnapshot: DataSnapshot) {
-                        // Handle the results here
-                        // Iterate through the results and display them
-                        if(dataSnapshot.exists()){
-                            Contacts.clear()
+                        if (dataSnapshot.exists()) {
+                            contacts.clear()
                             for (snapshot in dataSnapshot.children) {
-                                val searchcontact = snapshot.getValue(MainActivityModel::class.java)
-                                searchcontact.let {
-                                    if (it != null) {
-                                        Contacts.add(it)
-                                    }
-//                                Log.d("data", it.toString())
-                                    adapter.notifyDataSetChanged()
+                                val searchContact = snapshot.getValue(MainActivityModel::class.java)
+                                searchContact?.let {
+                                    contacts.add(it)
                                 }
-                                adapter.notifyDataSetChanged()
                             }
-                        }else{
-                            Toast.makeText(this@MainActivity,"No data found",Toast.LENGTH_SHORT).show()
+                            adapter.notifyDataSetChanged()
+                        } else {
+                            Toast.makeText(this@MainActivity, "No data found", Toast.LENGTH_SHORT).show()
                         }
-
                     }
 
                     override fun onCancelled(databaseError: DatabaseError) {
-                        // Handle any errors that occur during the query
-                        println("Error: ${databaseError.message}")
+                        Log.e("DatabaseError", "Error: ${databaseError.message}")
                     }
                 })
             }
-
+            override fun afterTextChanged(p0: Editable?) {
+                // Not used
+            }
         })
     }
-//    override fun onBackPressed() {
-//        if(this@MainActivity == MainActivity()){
-//            val alertDialog = AlertDialog.Builder(this)
-//            alertDialog.setTitle("Confirm Exit")
-//            alertDialog.setMessage("Are you sure you want to exit the app?")
-//
-//            alertDialog.setPositiveButton("Yes") { _, _ ->
-//                // Perform any necessary cleanup or exit the app
-//                finish() // Call super to actually exit the app
-//            }
-//
-//            alertDialog.setNegativeButton("No") { dialog, _ ->
-//                dialog.dismiss() // Dismiss the dialog and do nothing
-//            }
-//
-//            alertDialog.show()
-//        }else{
-//            super.onBackPressed()
-//        }
-//
-//    }
 
-    private suspend fun fatchContacts() {
-        withContext(Dispatchers.IO){
-            Firebase.database.reference.child("user_data").child(Firebase.auth.currentUser!!.uid).addValueEventListener(object :
-                ValueEventListener {
-                @SuppressLint("NotifyDataSetChanged")
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    if(snapshot.exists()){
-                       Contacts.clear()
-                        try{
-                            for(items in snapshot.children){
-                                val item = items.getValue(MainActivityModel::class.java)
-                                binding.progressBar2.visibility = View.GONE
-                                item?.let {
-                                    Contacts.add(it)
-//                                Log.d("data", it.toString())
-                                   adapter.notifyDataSetChanged()
-                                }
-                                adapter.notifyDataSetChanged()
-                            }
-                            //Toast.makeText(this@MainActivity,Contacts.toString(),Toast.LENGTH_SHORT).show()
-//                        cartItemList.addAll(cartItem)
-                        }catch (e:Exception){
-                            Log.e("myCart","${e.message}")
+    @SuppressLint("NotifyDataSetChanged")
+    private suspend fun fetchContacts() {
+        withContext(Dispatchers.IO) {
+            try {
+                val snapshot = Firebase.database.reference.child("user_data")
+                    .child(Firebase.auth.currentUser!!.uid).get().await()
+                if (snapshot.exists()) {
+                    val newContacts = ArrayList<MainActivityModel>() // Create a new list
+
+                    for (item in snapshot.children) {
+                        val contact = item.getValue(MainActivityModel::class.java)
+                        contact?.let {
+                            newContacts.add(it) // Add each contact to the new list
                         }
-                    }else{
-                        // Toast.makeText(requireContext(),"No Item Found",Toast.LENGTH_SHORT).show()
+                    }
+
+                    // Replace the old contacts list with the new one
+                    contacts.clear()
+                    contacts.addAll(newContacts)
+
+                    // Notify the adapter of the data change
+                    runOnUiThread {
+                        adapter.notifyDataSetChanged()
+                        binding.progressBar2.visibility = View.GONE
+                        Toast.makeText(this@MainActivity, "Contacts loaded successfully", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    runOnUiThread {
                         binding.progressBar2.visibility = View.GONE
                         binding.txtNoDataFound.visibility = View.VISIBLE
-                        adapter.notifyDataSetChanged()
                     }
                 }
-
-                override fun onCancelled(error: DatabaseError) {
-                    TODO("Not yet implemented")
-                }
-            })
+            } catch (e: Exception) {
+                Log.e("FetchContactsError", "${e.message}")
+            }
         }
     }
 
-    fun loadProfilePicture(){
-        val databaseReference = FirebaseDatabase.getInstance().getReference("userInfo").child(
-            Firebase.auth.currentUser!!.uid).child("0")
-        databaseReference.addListenerForSingleValueEvent(object :ValueEventListener{
+
+
+    private fun loadProfilePicture() {
+        val databaseReference = FirebaseDatabase.getInstance().getReference("userInfo")
+            .child(Firebase.auth.currentUser!!.uid).child("0")
+
+        databaseReference.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val user = snapshot.getValue(MainActivityModel::class.java)
-                if (user?.img?.isEmpty() == true){
-                    Toast.makeText(this@MainActivity,"Upload Profile Picture",Toast.LENGTH_SHORT).show()
+                if (user?.img?.isEmpty() == true) {
+                    Toast.makeText(this@MainActivity, "Upload Profile Picture", Toast.LENGTH_SHORT).show()
                     binding.imgUserPic.setImageResource(R.drawable.profile)
-                }else{
+                } else {
                     Glide.with(this@MainActivity)
                         .load(user?.img)
-                        .apply(RequestOptions.bitmapTransform(CircleCrop())).into(binding.imgUserPic)
+                        .apply(RequestOptions.bitmapTransform(CircleCrop()))
+                        .into(binding.imgUserPic)
                 }
             }
-            override fun onCancelled(error: DatabaseError) {
-                //TODO("Not yet implemented")
-            }
 
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("ProfilePictureError", "Error: ${error.message}")
+            }
         })
     }
 

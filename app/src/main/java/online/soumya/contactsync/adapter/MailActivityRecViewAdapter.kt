@@ -12,8 +12,7 @@ import online.soumya.contactsync.databinding.ContactOneRowBinding
 import online.soumya.contactsync.model.MainActivityModel
 
 class MailActivityRecViewAdapter(var contactList:ArrayList<MainActivityModel>):RecyclerView.Adapter<MailActivityRecViewAdapter.ViewHolder>() {
-    class ViewHolder(var binding:ContactOneRowBinding):RecyclerView.ViewHolder(binding.root){
-    }
+    class ViewHolder(var binding:ContactOneRowBinding):RecyclerView.ViewHolder(binding.root)
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         var binding = ContactOneRowBinding.inflate(LayoutInflater.from(parent.context),parent,false)
