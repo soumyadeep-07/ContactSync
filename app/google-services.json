@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1084723687169",
+    "project_id": "contactsync-53fe3",
+    "storage_bucket": "contactsync-53fe3.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1084723687169:android:6748b6e4af61073bcd3500",
+        "android_client_info": {
+          "package_name": "online.soumya.contactsync"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCCuek-eCgTbNQLvPA-Yf5TEdpzdmB7-hM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
